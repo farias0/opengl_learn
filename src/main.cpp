@@ -4,7 +4,7 @@
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
+void process_input(GLFWwindow *window);
 
 
 const unsigned int SCR_WIDTH = 800;
@@ -118,12 +118,9 @@ int main() {
     glEnableVertexAttribArray(0);
 
 
-    // Wireframe mode
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
     while (!glfwWindowShouldClose(window)) {
         
-        processInput(window);
+        process_input(window);
         
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -146,7 +143,23 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-void processInput(GLFWwindow *window) {
+void toggle_wireframe_mode() {
+    static bool wireframeMode = false;
+    wireframeMode = !wireframeMode;
+    glPolygonMode(GL_FRONT_AND_BACK, wireframeMode ? GL_LINE : GL_FILL);
+}
+
+void process_input(GLFWwindow *window) {
+    
+    static bool isHoldingWireframe = false;
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+    else if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS && !isHoldingWireframe) {
+        isHoldingWireframe = true;
+        toggle_wireframe_mode();
+    }
+    else if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_RELEASE) {
+        isHoldingWireframe = false;
+    }
 }
