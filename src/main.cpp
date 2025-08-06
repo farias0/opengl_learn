@@ -2,39 +2,28 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
+#include "Shader.hpp"
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void process_input(GLFWwindow *window);
+
+void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
+void ProcessInput(GLFWwindow *window);
 
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 const float TRIANGLE_VERTICES[] = {
-     0.5f,  0.5f, 0.0f,
-     0.5f, -0.5f, 0.0f,
-    -0.5f, -0.5f, 0.0f,
-    -0.5f,  0.5f, 0.0f 
+    // Positions        // Colors
+     0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f,   // Top right
+     0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,   // Bottom right
+    -0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,   // Bottom left
+    -0.5f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f    // Top left
 };
 
 const unsigned int TRIANGLE_INDICES[] = {
     0, 1, 3,
     1, 2, 3 
-};  
-
-const char *VERTEX_SHADER_SOURCE = "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
-
-const char *FRAGMENT_SHADER_SOURCE = "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "void main()\n"
-    "{\n"
-    "   FragColor = vec4(1.0, 0.5, 0.2, 1.0);\n"
-    "}\0";
+};
 
 
 int main() {
@@ -60,7 +49,7 @@ int main() {
         return -1;
     }
     glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cerr << "Failed to initialize GLAD" << std::endl;
@@ -68,43 +57,9 @@ int main() {
     }
 
 
-    GLint success;
-    char infoLog[512];
+    Shader shader("src/shaders/triangle.vs", "src/shaders/triangle.fs");
 
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &VERTEX_SHADER_SOURCE, nullptr);
-    glCompileShader(vertexShader);
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
-        std::cerr << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-        return -1;
-    }
 
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &FRAGMENT_SHADER_SOURCE, nullptr);
-    glCompileShader(fragmentShader);
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
-        std::cerr << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-        return -1;
-    }
-
-    GLuint shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
-        std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-        return -1;
-    }
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    
     GLuint vertexArrObj, vertexBuffObj, elementBuffObj;
     glGenVertexArrays(1, &vertexArrObj);
     glBindVertexArray(vertexArrObj);
@@ -114,18 +69,22 @@ int main() {
     glGenBuffers(1, &elementBuffObj);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBuffObj);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(TRIANGLE_INDICES), TRIANGLE_INDICES, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+    
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
 
     while (!glfwWindowShouldClose(window)) {
         
-        process_input(window);
+        ProcessInput(window);
         
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(shaderProgram);
+        shader.Use();
+
         glBindVertexArray(vertexArrObj);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -138,18 +97,18 @@ int main() {
     return 0;
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+void FramebufferSizeCallback(GLFWwindow* window, int width, int height) {
     window;
     glViewport(0, 0, width, height);
 }
 
-void toggle_wireframe_mode() {
+void ToggleWireframeMode() {
     static bool wireframeMode = false;
     wireframeMode = !wireframeMode;
     glPolygonMode(GL_FRONT_AND_BACK, wireframeMode ? GL_LINE : GL_FILL);
 }
 
-void process_input(GLFWwindow *window) {
+void ProcessInput(GLFWwindow *window) {
     
     static bool isHoldingWireframe = false;
 
@@ -157,7 +116,7 @@ void process_input(GLFWwindow *window) {
         glfwSetWindowShouldClose(window, true);
     else if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS && !isHoldingWireframe) {
         isHoldingWireframe = true;
-        toggle_wireframe_mode();
+        ToggleWireframeMode();
     }
     else if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_RELEASE) {
         isHoldingWireframe = false;
