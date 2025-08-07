@@ -1,30 +1,28 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <stb_image.h>
 
 #include "Shader.hpp"
 
-
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
 void ProcessInput(GLFWwindow *window);
-
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 const float TRIANGLE_VERTICES[] = {
-    // Positions        // Colors
-     0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f,   // Top right
-     0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,   // Bottom right
-    -0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,   // Bottom left
-    -0.5f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f    // Top left
+    // positions          // colors           // texture coords
+     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // top right
+     0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // bottom right
+    -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // bottom left
+    -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // top left 
 };
 
 const unsigned int TRIANGLE_INDICES[] = {
     0, 1, 3,
     1, 2, 3 
 };
-
 
 int main() {
 
@@ -56,9 +54,11 @@ int main() {
         return -1;
     }
 
+    //
 
     Shader shader("src/shaders/triangle.vs", "src/shaders/triangle.fs");
 
+    //
 
     GLuint vertexArrObj, vertexBuffObj, elementBuffObj;
     glGenVertexArrays(1, &vertexArrObj);
@@ -70,12 +70,61 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBuffObj);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(TRIANGLE_INDICES), TRIANGLE_INDICES, GL_STATIC_DRAW);
     
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+        // pos
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        // color
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+        // texcoord
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
+    //
 
+    GLuint texture1, texture2;
+    const char *texture1Path = "resources/container.jpg";
+    const char *texture2Path = "resources/awesomeface.png";
+    int width, height, nrChannels;
+    unsigned char *texData;
+    stbi_set_flip_vertically_on_load(true);
+
+    glGenTextures(1, &texture1);
+    glBindTexture(GL_TEXTURE_2D, texture1);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    texData = stbi_load(texture1Path, &width, &height, &nrChannels, 0); 
+    if (texData) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texData);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    } else {
+        std::cout << "Failed to load texture " << texture1Path << std::endl;
+    }
+    stbi_image_free(texData);
+
+    glGenTextures(1, &texture2);
+    glBindTexture(GL_TEXTURE_2D, texture2);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    texData = stbi_load(texture2Path, &width, &height, &nrChannels, 0);
+    if (texData) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texData);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    } else {
+        std::cout << "Failed to load texture " << texture2Path << std::endl;
+    }
+    stbi_image_free(texData);
+
+    shader.Use();
+    shader.SetInt("texture1", 0);
+    shader.SetInt("texture2", 1);
+
+    //
+    
     while (!glfwWindowShouldClose(window)) {
         
         ProcessInput(window);
@@ -85,6 +134,11 @@ int main() {
 
         shader.Use();
 
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, texture2);
+
         glBindVertexArray(vertexArrObj);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -92,6 +146,7 @@ int main() {
         glfwPollEvents();
     }
 
+    //
 
     glfwTerminate();
     return 0;
