@@ -15,3 +15,5 @@ Vertex data stored as part of objects can be used to draw different types of **p
 **Shader** programs need to be compiled at runtime before being used. Vertex and fragment shaders always need to be provided as part of the program.
 
 **Textures** can be bound to the state and then passed to the shaders. The fragment shader can then use this texture data, alonside the **texture coordinates**, to define each fragment's color. Multiple textures can be loaded and passed to the shaders at the same time in different **texture units**.
+
+4x4 **matrices** are used to apply transformations (scaling, rotation, translation) to **vectors** when working in the 3D space. These vectors are represented with 4 dimensions (x,y,z,w), known as homogeneous coordinates, which is needed to carry translation operations on them.
