@@ -7,9 +7,12 @@
 #include <stb_image.h>
 
 #include "Shader.hpp"
+#include "Camera.hpp"
 
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
 void ProcessInput(GLFWwindow *window);
+void MouseCallback(GLFWwindow* window, double xPos, double yPos);
+void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset);
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -71,8 +74,9 @@ const glm::vec3 CUBE_POSITIONS[] = {
     glm::vec3(-1.3f,  1.0f, -1.5f)  
 };
 
-double lastTime = 0.0;
+double lastFrame = 0.0;
 float deltaTime = 0.0;
+Camera camera = Camera();
 
 int main() {
 
@@ -98,6 +102,10 @@ int main() {
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(window, MouseCallback);
+    glfwSetScrollCallback(window, ScrollCallback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cerr << "Failed to initialize GLAD" << std::endl;
@@ -170,20 +178,12 @@ int main() {
     shader.SetInt("texture2", 1);
 
     //
-
-    glm::mat4 view = glm::mat4(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-
-    glm::mat4 projection = glm::mat4(1.0f);
-    projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
-    //
     
     while (!glfwWindowShouldClose(window)) {
         
         double currentTime = glfwGetTime();
-        deltaTime = (float)(currentTime - lastTime);
-        lastTime = currentTime;
+        deltaTime = (float)(currentTime - lastFrame);
+        lastFrame = currentTime;
 
         ProcessInput(window);
         
@@ -200,6 +200,9 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, texture2); 
 
         glBindVertexArray(vertexArrObj);
+
+        glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 projection = camera.GetProjectionMatrix((float)SCR_WIDTH, (float)SCR_HEIGHT);
 
         for (unsigned int i = 0; i < 10; i++) {
             
@@ -246,11 +249,40 @@ void ProcessInput(GLFWwindow *window) {
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    else if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS && !isHoldingWireframe) {
+    
+    if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS && !isHoldingWireframe) {
         isHoldingWireframe = true;
         ToggleWireframeMode();
     }
     else if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_RELEASE) {
         isHoldingWireframe = false;
     }
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.ProcessKeyboard(Camera::Movement::FORWARDS, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.ProcessKeyboard(Camera::Movement::BACKWARDS, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.ProcessKeyboard(Camera::Movement::LEFT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+       camera.ProcessKeyboard(Camera::Movement::RIGHT, deltaTime);
+}
+
+void MouseCallback(GLFWwindow* window, double xPos, double yPos)
+{
+    window;
+
+    static double lastX = xPos, lastY = yPos;
+    float xOffset = (float)(xPos - lastX) * MOUSE_SENSITIVITY;
+    float yOffset = (float)(yPos - lastY) * MOUSE_SENSITIVITY;
+    lastX = xPos;
+    lastY = yPos;
+
+    camera.ProcessMouseMovement(xOffset, yOffset);
+}
+
+void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
+{
+    window; xOffset;
+    camera.ProcessMouseScroll((float)yOffset);
 }
